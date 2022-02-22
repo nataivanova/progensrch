@@ -1,0 +1,17 @@
+All simulation data files are stored in /home/chatriks/pickle_runs_mesh/*m*p folders
+
+Query input format (Sample query also provided separately):
+
+0.0,7.0		# Donor Mass {Msol}
+7.0,10.0	# Accretor Mass {Msol}
+-15.0,-4.0	# log10(MT rate) {Msol/yr}
+0.0,100000.0	# Orbital Period {days}
+3.0,5.0		# log10(Donor Effective Temperature) {K}
+
+Enter the quantities in order, if you don't have error estimates for a quantity, enter limits that span the entire range of possible values.
+
+Query name is entered as a command line argument, run using:
+
+python3 query.py sample_query.txt
+
+Input and output paths can be edited in the query.py file as needed.
