@@ -169,7 +169,17 @@ class ProgenitorSearcher:
         return idx_start
 
     def gen_search_paths(self):
-        pass
+        [ print (  '/srv/progen_tool/'
+                 + str(self.query['bhns'])    + '/'
+                 + str(accretor_mass)         + '/'
+                 + str(quadrant)         + '/'
+                 + str(period)           + '/'
+                 + str(donor_mass) )
+          for accretor_mass in [ 5, 7, 10 ]
+          for quadrant   in self.confs.keys()
+          for donor_mass in self.confs[quadrant][0] if donor_mass >= self.query['m1'][0]
+          for period     in self.confs[quadrant][1]
+          ]
 
     # Function to look through data files to find progenitors for the query
     def do_search(self):
@@ -303,6 +313,8 @@ if __name__ == "__main__":
     except QueryParametersException as e:
         print(e)
         exit (1)
+
+    s.gen_search_paths()
     try:
         s.do_search()
     except Exception as e:
