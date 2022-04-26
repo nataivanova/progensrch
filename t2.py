@@ -32,27 +32,38 @@ def downloader(update, context):
     with open('/tmp/' + req_id, 'wb') as f:
         context.bot.get_file(update.message.document).download(out=f)
         f.close()
-        context.bot.send_message(chat_id=update.message.chat_id, text = "your search id is" + req_id)
-        s = progen_search(req_id)
-        outpath = '/tmp/' + req_id + '.result'
+        context.bot.send_message(
+                  chat_id = update.message.chat_id
+                , text    = "your search id is " + req_id)
         try:
-            outfile = open(outpath, 'wb')
-            outfile.write(bytes(str(s),'UTF-8'))
-            outfile.close()
-            outfile = open(outpath, 'rb')
-            context.bot.send_document(chat_id=update.message.chat_id, document=outfile, disable_content_type_detection=True)
+            s = progen_search(req_id)
+            outpath = '/tmp/' + req_id + '.result'
+            try:
+                outfile = open(outpath, 'wb')
+                outfile.write(bytes(str(s),'UTF-8'))
+                outfile.close()
+                outfile = open(outpath, 'rb')
+                context.bot.send_document(
+                       chat_id  = update.message.chat_id
+                     , document = outfile
+                     , disable_content_type_detection = True)
+            except Exception as e:
+                print (str(e))
+
         except Exception as e:
-            print (str(e))
-
-
-    # tempfile.NamedTemporaryFile(
-          # mode   = 'r+t'
-        # , suffix = '.txt'
-        # , prefix = 'progsrch.up.'
-        # , delete = False
-        # , errors = None)  as f:
-        # context.bot.get_file(update.message.document).download(out=f)
-        # print("downloaded tp file" + f + "\n")
+            print (e)
+            try:
+                errpath = '/tmp/' + req_id + '.err'
+                errfile = open(errpath, 'wb')
+                errfile.write(bytes(str(e),'UTF-8'))
+                errfile.close()
+                errfile = open(errpath, 'rb')
+                context.bot.send_document(
+                          chat_id = update.message.chat_id
+                        , document=errfile
+                        , disable_content_type_detection=True)
+            except Exception as e:
+                 print(str(e))
 
 updater = Updater(BOT_TOKEN, use_context=True)
 
