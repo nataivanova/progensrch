@@ -4,6 +4,22 @@ import numpy as np
 import os
 import pickle
 
+class ProgenSearchException(Exception):
+    errors = []
+
+    def __init__(self, errors):
+        self.errors = errors
+
+    def __str__(self):
+        return str(self.errors)
+
+class QueryParametersException(ProgenSearchException):
+    pass
+
+class NoProgensFoundException(ProgenSearchException):
+    pass
+
+
 class ProgenitorQuery:
 
     # m1 -> Donor Mass {Msol}
@@ -42,6 +58,7 @@ class ProgenitorSearcher:
     confs = {}
     db_location = '/tmp/'
     progens = []
+    errors  = []
 
     def __init__(self, query, db_location):
 
@@ -68,21 +85,18 @@ class ProgenitorSearcher:
     def validate(self, query):
         # Various input checks
         if (query['m1'][0] < 0.0 or query['m1'][0] > query['m1'][1]):
-            print("Wrong donor mass range")
-            exit()
+            self.errors.append("Wrong donor mass range")
         if (query['m2'][0] < 0.0 or query['m2'][0] > query['m2'][1]):
-            print("Wrong BH mass range")
-            exit()
+            self.errors.append("Wrong BH mass range")
         if (query['mt'][0] < -50.0 or query['mt'][0] > query['mt'][1]):
-            print("Wrong MT rate")
-            exit()
+            self.errors.append("Wrong MT rate")
         if (query['p'][0] < 0.0 or query['p'][0] > query['p'][1]):
-            print("Wrong orbital period")
-            exit()
+            self.errors.append("Wrong orbital period")
         if query['teff'][0] > query['teff'][1]:
-            print("Wrong Donor Teff")
-            exit()
+            self.errors.append("Wrong Donor Teff")
 
+        if (self.errors):
+            raise QueryParametersException(self.errors)
 
     def match_props(self, data):
         query = self.query
@@ -90,23 +104,23 @@ class ProgenitorSearcher:
         try:
             if 'm1' in query:
                 if (data[0] < query['m1'][0] or data[0] > query['m1'][1]):
-                    # print("No m1")
+                    print("No m1")
                     return 0
             if 'm2' in query:
                 if (data[1] < query['m2'][0] or data[1] > query['m2'][1]):
-                    # print("No m2")
+                    print("No m2")
                     return 0
             if 'mt' in query:
                 if (data[2] < query['mt'][0] or data[2] > query['mt'][1]):
-                    # print("No mt")
+                    print("No mt")
                     return 0
             if 'p' in query:
                 if (data[3] < query['p'][0] or data[3] > query['p'][1]):
-                    # print("No p")
+                    print("No p")
                     return 0
             if 'teff' in query:
                 if (data[4] < query['teff'][0] or data[4] > query['teff'][1]):
-                    # print("No teff")
+                    print("No teff")
                     return 0
         except Exception as e:
             print("Error in matching properties")
@@ -154,6 +168,9 @@ class ProgenitorSearcher:
         
         return idx_start
 
+    def gen_search_paths(self):
+        pass
+
     # Function to look through data files to find progenitors for the query
     def do_search(self):
         query = self.query
@@ -163,7 +180,7 @@ class ProgenitorSearcher:
         
         data_paths = []
         # Select relevant databases to search through
-        if query['bhns'] == 0:
+        if 0 == query['bhns']:
             data_paths.append(self.db_location)
         else:
             for x in self.bh_masses:
@@ -259,6 +276,8 @@ class ProgenitorSearcher:
                                 print("Error occurred in "+fpath+"\n"+str(e)+"\n")
 
         self.progens = progens
+        if not progens:
+            raise NoProgensFoundException('No progenitors found')
 
     def __str__(self):
         s = ''
@@ -279,8 +298,15 @@ if __name__ == "__main__":
     import uuid
     x = ProgenitorQuery(sys.argv[1])
     db_location = os.environ['DB_LOCATION']
-    s = ProgenitorSearcher(x.query, db_location)
-    s.do_search()
+    try:
+        s = ProgenitorSearcher(x.query, db_location)
+    except QueryParametersException as e:
+        print(e)
+        exit (1)
+    try:
+        s.do_search()
+    except Exception as e:
+        print (type(e), str(e))
     print(s)
     req_id = str(uuid.uuid4())
     outpath = '/tmp/' + req_id + '.result'
