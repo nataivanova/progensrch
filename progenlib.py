@@ -168,17 +168,33 @@ class ProgenitorSearcher:
         
         return idx_start
 
+    def accretor_mass_partition(self):
+        # hese lines are for choosing which accretor masses will be relevant for the search.
+        # For example, if the query given is 9.0,9.5 for accretor mass, the code will not go into the 10 msol database at all, since there will be no matches there. 
+        # The second condition for choosing the relevant accretor uses the 3.5.
+        # So for our example, if we had the 5 msol database included, the code would check whether 5+3.5=8.5 is less than the lower limit of the query (9.0).
+        # If that is the case, it will not search in the 5 msol database.
+        # The 3.5 is present there because the maximum mass that can be accreted by the black hole is 0.5*7.0 (efficiency*max donor mass) = 3.5
+        # So no black hole in the 5 msol database will reach the mass given in the query, so there is no need to search through 5 msol. 
+        # Therefore, for our example, only 7msol  database will be selected to be searched through.
+
+        if self.query['bhns']:
+            return  [ x for x in self.bh_masses if ( x < self.query['m2'][1] ) and ( x > self.query['m2'][0] - 3.5 ) ] 
+        else:
+            return ['/']
+
     def gen_search_paths(self):
-        [ print (  '/srv/progen_tool/'
+        return [ '/srv/progen_tool/'
                  + str(self.query['bhns'])    + '/'
                  + str(accretor_mass)         + '/'
-                 + str(quadrant)         + '/'
-                 + str(period)           + '/'
-                 + str(donor_mass) )
-          for accretor_mass in [ 5, 7, 10 ]
-          for quadrant   in self.confs.keys()
-          for donor_mass in self.confs[quadrant][0] if donor_mass >= self.query['m1'][0]
-          for period     in self.confs[quadrant][1]
+                 + str(quadrant)              + '/'
+                 + 'm_'  + f'{donor_mass:4.2f}'
+                 + '_p_' + f'{donor_mass:4.2f}'
+                 + '.data'
+          for accretor_mass in self.accretor_mass_partition()
+          for quadrant      in self.confs.keys()
+          for donor_mass    in self.confs[quadrant][0] if donor_mass >= self.query['m1'][0]
+          for period        in self.confs[quadrant][1]
           ]
 
     # Function to look through data files to find progenitors for the query
@@ -314,7 +330,7 @@ if __name__ == "__main__":
         print(e)
         exit (1)
 
-    s.gen_search_paths()
+    print (s.gen_search_paths())
     try:
         s.do_search()
     except Exception as e:
