@@ -256,12 +256,12 @@ class ProgenitorSearcher:
                                     infile = open(fpath,'rb')
                                     vals = pickle.load(infile)
                                     infile.close()
-                                    
+
                                     #print(fpath)
                                     #print(vals.shape)
-                                    
+
                                     # Ignore simulations where final donor mass is greater than upper limit of donor mass in query. Similarly, ignore simulations where initial accretor mass is greater than upper limit of accretor mass in query
-                                    if (vals[0][-1] <= query['m1'][1] and vals[1][0] <= query['m2'][1]):
+                                    if (vals[0][-1] <= query['m1'][1] and vals[1][-1] >= query['m2'][0]):
                                         # Flags to indicate if system is a progenitor
                                         flag = 0
                                         pflag = 0
