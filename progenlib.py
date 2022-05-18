@@ -268,21 +268,21 @@ class ProgenitorSearcher:
                                         # Indices in array to define window of entries where donor mass satisfies query donor mass limits
                                         start_m = 0
                                         end_m = 0
-                                        
+
                                         # If upper limit of donor mass in query is greater than initial donor mass, start window at top of file
                                         if vals[0][0] <= query['m1'][1]:
                                             start_m = 0
                                         else:
                                         # Binary search for upper donor mass limit
-                                            start_m = self.search(vals[0],query['m1'][0])-1
-                                        
+                                            start_m = self.search(vals[0],query['m1'][1])-1
+
                                         # If lower limit of donor mass in query is less than final donor mass end window at bottom of file
                                         if vals[0][-1] >= query['m1'][0]:
                                             end_m = vals.shape[1]-1
                                         else:
                                         # Binary search for lower donor mass limit
                                             end_m = self.search(vals[0],query['m1'][0])
-                                        
+
                                         # If donor mass window is found, go through simulation entries one by one to match all system properties to query. Flag all simulations with a matching system
                                         if (start_m <= end_m):
                                             #print("Mass matched ",start_m,end_m,end_m-start_m)
