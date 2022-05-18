@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import re
 import numpy as np
 import os
 import pickle
@@ -22,33 +23,47 @@ class NoProgensFoundException(ProgenSearchException):
 
 class ProgenitorQuery:
 
+
     # m1 -> Donor Mass {Msol}
     # m2 -> Accretor Mass {Msol}
     # mt -> log10(MT Rate) {Msol/yr}
     # p -> Orbital Period {days}
     # teff -> log10(Donor Effective Temp) {K}
-    labels = ['m1','m2','mt','p','teff']
+    # labels = ['m1','m2','mt','p','teff']
 
     query = {}
 
     def __init__(self, qpath):
-        print (qpath)
+
         try:
-            q = open(qpath,"r")
-            bhns = (q.readline()).split(None, 1)[0]
-            q.close()
+            with open(qpath) as infile:
+                content = infile.read()
 
-            qtemp = np.loadtxt(qpath,delimiter=",",skiprows=1)
+                m = re.match (
+                    r"""^(?P<isBH>[01])                                          \s*(\#.*)?\s*    # first line: 1 = BH
+                      (?P<donor_m>    \d+\.\d*)   \s*,\s* (?P<donor_M>    \d+\.\d*) \s*(\#.*)?\s*    # donor mass
+                      (?P<accretor_m> \d+\.\d*)   \s*,\s* (?P<accretor_M> \d+\.\d*) \s*(\#.*)?\s*    # accretor mass
+                      (?P<mt_m>     -?\d+\.\d*)   \s*,\s* (?P<mt_M>     -?\d+\.\d*) \s*(\#.*?)\s*    # MT rate
+                      (?P<period_m>   \d+\.\d*)   \s*,\s* (?P<period_M>   \d+\.\d*) \s*(\#.*?)\s*    # orbital period
+                      (?P<teff_m>     \d+\.\d*)   \s*,\s* (?P<teff_M>     \d+\.\d*) \s*(\#.*)?\s*    # effective T"""
+                    , content
+                    , flags = re.X)
+
         except Exception as e:
-            print("Error in query input, please recheck format")
+            print("Error reading input file")
             print(str(e))
-            exit()
 
-        #print(qtemp.shape)
-        self.query['bhns'] = int(bhns)
-        for i in range(qtemp.shape[0]):
-            self.query[self.labels[i]] = qtemp[i]
-        
+        if m:
+            self.query = { 'bhns': int(m.group('isBH'))
+                           , 'm1': [float(m.group('donor_m')),    float(m.group('donor_M'))]
+                           , 'm2': [float(m.group('accretor_m')), float(m.group('accretor_M'))]
+                           , 'mt': [float(m.group('mt_m')),       float(m.group('mt_M'))]
+                           , 'p':  [float(m.group('period_m')),   float(m.group('period_M'))]
+                           , 'teff': [float(m.group('teff_m')),   float(m.group('teff_M'))]
+                          }
+        else:
+            raise QueryParametersException('input file does not match template')
+
         return None
 
 
@@ -165,26 +180,28 @@ class ProgenitorSearcher:
             if (mt_arr[i] >= -15 and mt_arr[i+1] >= -15 and mt_arr[i+2] >= -15 and mt_arr[i+3] >= -15):
                 idx_start = i
                 break
-        
+
         return idx_start
 
     def accretor_mass_partition(self):
         # hese lines are for choosing which accretor masses will be relevant for the search.
-        # For example, if the query given is 9.0,9.5 for accretor mass, the code will not go into the 10 msol database at all, since there will be no matches there. 
+        # For example, if the query given is 9.0,9.5 for accretor mass, the code will not go into the 10 msol database at all, since there will be no matches there.
         # The second condition for choosing the relevant accretor uses the 3.5.
         # So for our example, if we had the 5 msol database included, the code would check whether 5+3.5=8.5 is less than the lower limit of the query (9.0).
         # If that is the case, it will not search in the 5 msol database.
         # The 3.5 is present there because the maximum mass that can be accreted by the black hole is 0.5*7.0 (efficiency*max donor mass) = 3.5
-        # So no black hole in the 5 msol database will reach the mass given in the query, so there is no need to search through 5 msol. 
+        # So no black hole in the 5 msol database will reach the mass given in the query, so there is no need to search through 5 msol.
         # Therefore, for our example, only 7msol  database will be selected to be searched through.
 
+        print(self.query)
         if self.query['bhns']:
-            return  [ x for x in self.bh_masses if ( x < self.query['m2'][1] ) and ( x > self.query['m2'][0] - 3.5 ) ] 
+            return  [ x for x in self.bh_masses if ( x < self.query['m2'][1] ) and ( x > self.query['m2'][0] - 3.5 ) ]
         else:
             return ['/']
 
     def gen_search_paths(self):
-        return [ '/srv/progen_tool/'
+        return filter (lambda x: os.path.exists(x)
+             , [ '/srv/progen_tool/'
                  + str(self.query['bhns'])    + '/'
                  + str(accretor_mass)         + '/'
                  + str(quadrant)              + '/'
