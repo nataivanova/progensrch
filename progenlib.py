@@ -45,7 +45,8 @@ class ProgenitorQuery:
                       (?P<accretor_m> \d+\.\d*)   \s*,\s* (?P<accretor_M> \d+\.\d*) \s*(\#.*)?\s*    # accretor mass
                       (?P<mt_m>     -?\d+\.\d*)   \s*,\s* (?P<mt_M>     -?\d+\.\d*) \s*(\#.*?)\s*    # MT rate
                       (?P<period_m>   \d+\.\d*)   \s*,\s* (?P<period_M>   \d+\.\d*) \s*(\#.*?)\s*    # orbital period
-                      (?P<teff_m>     \d+\.\d*)   \s*,\s* (?P<teff_M>     \d+\.\d*) \s*(\#.*)?\s*    # effective T"""
+                      (?P<teff_m>     \d+\.\d*)   \s*,\s* (?P<teff_M>     \d+\.\d*) \s*(\#.*)?\s*    # effective T
+                      .*"""
                     , content
                     , flags = re.X)
 
