@@ -82,13 +82,16 @@ class ProgenitorSearcher:
         self.query = query
         self.validate(self.query)
 
+        print(query)
+        print(self.query)
+
         # Progenitor Grid
         m_arrl = np.arange(4.0,7.1,0.1)
         m_arrs = np.arange(0.95,4.05,0.05)
         p_arrl = np.arange(1.65,4.05,0.05)
         p_arrs = np.arange(-0.60,1.66,0.02)
 
-        self.bh_masses = [7.0,10.0]
+        self.bh_masses = [5.0, 7.0, 10.0]
 
         # Grid separation w.r.t density since simulations are stored in four folders
         self.confs = { 'lmlp':[m_arrl,p_arrl]
