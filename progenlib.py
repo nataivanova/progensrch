@@ -4,6 +4,8 @@ import re
 import numpy as np
 import os
 import pickle
+import json
+import logging
 
 class ProgenSearchException(Exception):
     errors = []
@@ -14,6 +16,9 @@ class ProgenSearchException(Exception):
     def __str__(self):
         return str(self.errors)
 
+class ProgenDBInitException (ProgenSearchException):
+    pass
+
 class QueryParametersException(ProgenSearchException):
     pass
 
@@ -22,7 +27,6 @@ class NoProgensFoundException(ProgenSearchException):
 
 
 class ProgenitorQuery:
-
 
     # m1 -> Donor Mass {Msol}
     # m2 -> Accretor Mass {Msol}
@@ -34,7 +38,11 @@ class ProgenitorQuery:
     query = {}
     content = ""
 
-    def __init__(self, qpath):
+
+    def __init__(self, qpath) -> None:
+
+        logger = logging.getLogger('progentool')
+        logger.info ('parsing the input file' + qpath)
 
         try:
             with open(qpath) as infile:
@@ -52,8 +60,8 @@ class ProgenitorQuery:
                     , flags = re.X)
 
         except Exception as e:
-            print("Error reading input file")
-            print(str(e))
+            logger.error("Error reading input file")
+            logger.error(str(e))
 
         if m:
             self.query = { 'bhns': int(m.group('isBH'))
@@ -334,8 +342,8 @@ class ProgenitorSearcher:
                     + f'{i[1]:.2f}' + ' '
                     + f'{i[2]:.2f}' + ' '
                     + f'{i[3]:.4f}' + ' '
-                    + f'{i[4]:.4f}' +' '
-                    + f'{i[5]:.4f}' +' '
+                    + f'{i[4]:.4f}' + ' '
+                    + f'{i[5]:.4f}' + ' '
                     + f'{i[6]:.4f}'
                     +'\n')
 
@@ -344,21 +352,34 @@ class ProgenitorSearcher:
 if __name__ == "__main__":
     import sys
     import uuid
-    x = ProgenitorQuery(sys.argv[1])
+
+    req_id = str(uuid.uuid4())
+    infile = sys.argv[1]
     db_location = os.environ['DB_LOCATION']
+
+    logger = logging.getLogger('progentool')
+    logging.basicConfig( level = logging.INFO
+                        , format = 'id=' +  req_id + ', t=%(asctime)s, message=%(message)s' )
+    logger.info('progenitor tool started. query input file: %s', infile )
+    logger.info('database location: %s', db_location )
+
+    db = ProgenitorDatabase(db_location)
+
+    query = ProgenitorQuery(infile)
+    view = db.view(query.query)
+    exit(0)
+
     try:
-        s = ProgenitorSearcher(x.query, db_location)
+        s = ProgenitorSearcher(qry.query, db_location)
     except QueryParametersException as e:
-        print(e)
+        logger.error(e)
         exit (1)
 
-    print (s.gen_search_paths())
     try:
         s.do_search()
     except Exception as e:
         print (type(e), str(e))
     print(s)
-    req_id = str(uuid.uuid4())
     outpath = '/tmp/' + req_id + '.result'
     outfile = open(outpath, 'wb')
     outfile.write(bytes(str(s), 'UTF-8'))
