@@ -32,22 +32,23 @@ class ProgenitorQuery:
     # labels = ['m1','m2','mt','p','teff']
 
     query = {}
+    content = ""
 
     def __init__(self, qpath):
 
         try:
             with open(qpath) as infile:
-                content = infile.read()
+                self.content = infile.read()
 
                 m = re.match (
                     r"""^(?P<isBH>[01])                                          \s*(\#.*)?\s*    # first line: 1 = BH
-                      (?P<donor_m>    \d+\.\d*)   \s*,\s* (?P<donor_M>    \d+\.\d*) \s*(\#.*)?\s*    # donor mass
-                      (?P<accretor_m> \d+\.\d*)   \s*,\s* (?P<accretor_M> \d+\.\d*) \s*(\#.*)?\s*    # accretor mass
-                      (?P<mt_m>     -?\d+\.\d*)   \s*,\s* (?P<mt_M>     -?\d+\.\d*) \s*(\#.*?)\s*    # MT rate
-                      (?P<period_m>   \d+\.\d*)   \s*,\s* (?P<period_M>   \d+\.\d*) \s*(\#.*?)\s*    # orbital period
-                      (?P<teff_m>     \d+\.\d*)   \s*,\s* (?P<teff_M>     \d+\.\d*) \s*(\#.*)?\s*    # effective T
+                      (?P<donor_m>    \d+\.?\d*(?: [ed][+-]?\d+)*)   \s*,\s* (?P<donor_M>    \d+\.?\d*(?: [ed][+-]?\d+)*) \s*(\#.*)?\s*    # donor mass
+                      (?P<accretor_m> \d+\.?\d*(?: [ed][+-]?\d+)*)   \s*,\s* (?P<accretor_M> \d+\.?\d*(?: [ed][+-]?\d+)*) \s*(\#.*)?\s*    # accretor mass
+                      (?P<mt_m>     -?\d+\.?\d*(?: [ed][+-]?\d+)*)   \s*,\s* (?P<mt_M>     -?\d+\.?\d*(?: [ed][+-]?\d+)*) \s*(\#.*?)\s*    # MT rate
+                      (?P<period_m>   \d+\.?\d*(?: [ed][+-]?\d+)*)   \s*,\s* (?P<period_M>   \d+\.?\d*(?: [ed][+-]?\d+)*) \s*(\#.*?)\s*    # orbital period
+                      (?P<teff_m>     \d+\.?\d*(?: [ed][+-]?\d+)*)   \s*,\s* (?P<teff_M>     \d+\.?\d*(?: [ed][+-]?\d+)*) \s*(\#.*)?\s*    # effective T
                       .*"""
-                    , content
+                    , self.content
                     , flags = re.X)
 
         except Exception as e:
@@ -63,7 +64,7 @@ class ProgenitorQuery:
                            , 'teff': [float(m.group('teff_m')),   float(m.group('teff_M'))]
                           }
         else:
-            raise QueryParametersException('input file does not match template')
+            raise QueryParametersException('input file does not match template\n' + self.content)
 
         return None
 
