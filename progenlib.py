@@ -213,8 +213,8 @@ class ProgenitorSearcher:
         self.query = query
         self.validate(self.query)
 
-        print(query)
-        print(self.query)
+        logger = logging.getLogger ('progentool')
+        logger.info( 'received query qry=' + str(self.query) )
 
         # Progenitor Grid
         m_arrl = np.arange(4.0,7.1,0.1)
