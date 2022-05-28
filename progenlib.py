@@ -222,64 +222,15 @@ class ProgenitorSearcher:
         p_arrl = np.arange(1.65,4.05,0.05)
         p_arrs = np.arange(-0.60,1.66,0.02)
 
-        self.bh_masses = [5.0, 7.0, 10.0]
 
-        # Grid separation w.r.t density since simulations are stored in four folders
-        self.confs = { 'lmlp':[m_arrl,p_arrl]
-                     , 'smlp':[m_arrs,p_arrl]
-                     , 'lmsp':[m_arrl,p_arrs]
-                     , 'smsp':[m_arrs,p_arrs] }
+    # Binary search algorithm in a list pre-sorted in ascending order
+    def search(self, array, element) -> int:
 
-
-    def validate(self, query):
-        # Various input checks
-        if (query['m1'][0] < 0.0 or query['m1'][0] > query['m1'][1]):
-            self.errors.append("Wrong donor mass range")
-        if (query['m2'][0] < 0.0 or query['m2'][0] > query['m2'][1]):
-            self.errors.append("Wrong BH mass range")
-        if (query['mt'][0] < -50.0 or query['mt'][0] > query['mt'][1]):
-            self.errors.append("Wrong MT rate")
-        if (query['p'][0] < 0.0 or query['p'][0] > query['p'][1]):
-            self.errors.append("Wrong orbital period")
-        if query['teff'][0] > query['teff'][1]:
-            self.errors.append("Wrong Donor Teff")
-
-        if (self.errors):
-            raise QueryParametersException(self.errors)
-
-    def match_props(self, data):
-        query = self.query
-        # print (query)
-        try:
-            if 'm1' in query:
-                if (data[0] < query['m1'][0] or data[0] > query['m1'][1]):
-                    print("No m1")
-                    return 0
-            if 'm2' in query:
-                if (data[1] < query['m2'][0] or data[1] > query['m2'][1]):
-                    print("No m2")
-                    return 0
-            if 'mt' in query:
-                if (data[2] < query['mt'][0] or data[2] > query['mt'][1]):
-                    print("No mt")
-                    return 0
-            if 'p' in query:
-                if (data[3] < query['p'][0] or data[3] > query['p'][1]):
-                    print("No p")
-                    return 0
-            if 'teff' in query:
-                if (data[4] < query['teff'][0] or data[4] > query['teff'][1]):
-                    print("No teff")
-                    return 0
-        except Exception as e:
-            print("Error in matching properties")
+        if element <= array[0]:
             return 0
+        if element >= array[-1]:
+            return len(array) - 1
 
-        return 1
-
-    # Binary search algorithm used for Donor Mass
-    def search(self, array, element):
-        
         mid = 0
         start = 0
         end = len(array)
@@ -437,10 +388,10 @@ class ProgenitorSearcher:
         for dpath in data_paths:
             # Loop through four folders
             for c in confs.keys():
-                # Loops for initial mass and period values 
+                # Loops for initial mass and period values
                 for i in confs[c][0]:
                     for j in confs[c][1]:
-                        
+
                         # Ignore simulations where initial donor mass is less than the lower limit of donor mass in query
                         if i >= query['m1'][0]:
                             try:
@@ -479,35 +430,27 @@ class ProgenitorSearcher:
                                         # If donor mass window is found, go through simulation entries one by one to match all system properties to query. Flag all simulations with a matching system
                                         if (start_m <= end_m):
                                             #print("Mass matched ",start_m,end_m,end_m-start_m)
-                                            idx_low = -1
-                                            idx_high = -1
                                             obs_time = 0.0
                                             mt_start = 0
 
                                             for k in range(start_m,end_m+1):
                                                 if (k < 0 or k >= vals.shape[1]):
                                                     break
-                                                flag = self.match_props([vals[0][k],vals[1][k],vals[2][k],vals[3][k],vals[4][k]])
-                                                
-                                                # If a match is found, find the time spent as observed system, each traversal across the window is added to total observed time incrementally
-                                                if (flag == 1 and idx_low == -1):
-                                                    idx_low = k
+                                                flag = match_props([vals[0][k],vals[1][k],vals[2][k],vals[3][k],vals[4][k]])
 
-                                                if ((flag == 0 and idx_low != -1 and idx_high == -1) or (flag == 1 and k == end_m and idx_high == -1)):
+                                                # If a match is found, find the time spent as observed system, each traversal across the window is added to total observed time incrementally
+                                                if flag:
                                                     pflag = 1
-                                                    idx_high = k
-                                                    obs_time = obs_time + vals[5][idx_high]-vals[5][idx_low]
-                                                    idx_low = -1
-                                                    idx_high = -1
+                                                    obs_time += 10**vals[7][k]
 
                                             # If simulated system spends time as the observed system, find start of MT information and add to list of progenitors
-                                            if pflag == 1:
+                                            if pflag:
                                                 mt_start = self.find_mt_start(vals[2])
                                                 tot_time = vals[5][-1]-vals[5][0]
-            
+
                                                 progens.append([i,j,vals[1][0],obs_time,tot_time,vals[0][mt_start],np.log10(vals[3][mt_start])])
                                                 print("Found Progenitor -> "+fpath)
-                                    
+
                                 else:
                                     print("No path found: "+fpath)
 
@@ -517,6 +460,7 @@ class ProgenitorSearcher:
         self.progens = progens
         if not progens:
             raise NoProgensFoundException('No progenitors found')
+
 
     def __str__(self):
         s = ''
