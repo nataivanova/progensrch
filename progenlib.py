@@ -196,6 +196,20 @@ class ProgenitorDatabase:
           for period        in self.confs[quadrant][1]
           ])
        """
+    # Function to find index where system starts MT
+    def find_mt_start(find, mt_arr):
+
+        idx_start = 0
+
+        if len(mt_arr) <= 5:
+            return idx_start
+
+        for i in range(len(mt_arr)-3):
+            if ( mt_arr[i] >= -15 and mt_arr[i+1] >= -15 and mt_arr[i+2] >= -15 and mt_arr[i+3] >= -15):
+                idx_start = i
+                break
+
+        return idx_start
 
 
 class ProgenitorSearcher:
@@ -252,21 +266,6 @@ class ProgenitorSearcher:
                 start = mid + 1
         return start
 
-
-    # Function to find index where system starts MT
-    def find_mt_start(find, mt_arr):
-
-        idx_start = 0
-
-        if len(mt_arr) <= 5:
-            return idx_start
-
-        for i in range(len(mt_arr)-3):
-            if ( mt_arr[i] >= -15 and mt_arr[i+1] >= -15 and mt_arr[i+2] >= -15 and mt_arr[i+3] >= -15):
-                idx_start = i
-                break
-
-        return idx_start
 
 
     def get_vals(self, filepath) -> dict:
@@ -475,6 +474,7 @@ class ProgenitorSearcher:
                     +'\n')
 
         return (s)
+
 
 if __name__ == "__main__":
     import sys
