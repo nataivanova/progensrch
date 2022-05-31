@@ -181,21 +181,6 @@ class ProgenitorDatabase:
 
         return v
 
-        """
-        self.paths = filter (lambda x: os.path.exists(x)
-             , [ db_location
-                 + str(self.query['bhns'])    + '/'
-                 + str(accretor_mass)         + '/'
-                 + str(quadrant)              + '/'
-                 + 'm_'  + f'{donor_mass:4.2f}'
-                 + '_p_' + f'{donor_mass:4.2f}'
-                 + '.data'
-          for accretor_mass in self.accretor_mass_partition()
-          for quadrant      in self.confs.keys()
-          for donor_mass    in self.confs[quadrant][0] if donor_mass >= self.query['m1'][0]
-          for period        in self.confs[quadrant][1]
-          ])
-       """
     # Function to find index where system starts MT
     def find_mt_start(find, mt_arr):
 
@@ -216,25 +201,17 @@ class ProgenitorSearcher:
 
     query = {}
     confs = {}
-    db_location = '/srv/progen_tool'
     progens = []
     errors  = []
 
-    def __init__(self, query, db_location):
+    def __init__(self, query: ProgenitorQuery, db: ProgenitorDatabase) -> Null:
 
-        self.db_location = db_location
+        self.db = db
 
-        self.query = query
-        self.validate(self.query)
+        self.query = query.query
 
         logger = logging.getLogger ('progentool')
         logger.info( 'received query qry=' + str(self.query) )
-
-        # Progenitor Grid
-        m_arrl = np.arange(4.0,7.1,0.1)
-        m_arrs = np.arange(0.95,4.05,0.05)
-        p_arrl = np.arange(1.65,4.05,0.05)
-        p_arrs = np.arange(-0.60,1.66,0.02)
 
 
     # Binary search algorithm in a list pre-sorted in ascending order
