@@ -83,6 +83,7 @@ class ProgenitorQuery:
 
     def validate(self):
         """ Rudimentary input checks """
+        query = self.query
         errors = []
         if (query['m1'][0] < 0.0 or query['m1'][0] > query['m1'][1]):
             errors.append("Wrong donor mass range")
@@ -172,14 +173,14 @@ class ProgenitorDatabase:
 
         self.logger.info('creating a view for query: ' + str(query) )
 
-        v = filter (  lambda _: _[1]['m1'] >= query['m1'][0]
+        v = dict (filter (  lambda _: _[1]['m1'] >= query['m1'][0]
                       and       _[1]['isbh'] == query['bhns']
                       and ( True if not _[1]['isbh']
                             else (     _[1]['m2'] < query['m2'][1]
                                    and _[1]['m2'] > query['m2'][0] - maxtransferredmass ) )
-                      , self.db.items() )
+                      , self.db.items()) )
 
-        self.logger.info('built view with ' + str(len(dict(x))) + ' candidate data files' )
+        self.logger.info('built view with ' + str(len(v)) + ' candidate data files' )
 
         return v
 
@@ -199,24 +200,82 @@ class ProgenitorDatabase:
         return idx_start
 
 
-class ProgenitorSearcher:
+class ProgenitorSearch:
 
-    query = {}
-    confs = {}
     progens = []
     errors  = []
-    view = {}
 
-    def __init__(self, query: ProgenitorQuery, db: ProgenitorDatabase) -> Null:
+    def __init__(self, query: ProgenitorQuery, db: ProgenitorDatabase) -> None:
 
         self.db = db
         self.query = query.query
 
-        logger = logging.getLogger ('progentool')
-        logger.info( 'starting search with query qry=' + str(self.query) )
+        self.logger = logging.getLogger ('progentool')
+        self.logger.info( 'starting search with query qry=' + str(self.query) )
 
         self.view =  db.view(query)
         self.do_search()
+
+    # Function to look through data files to find progenitors for the query
+    def do_search(self):
+
+        def get_vals(filepath: str) -> dict:
+            with open(filepath, 'rb') as infile:
+                donor_masses, accretor_masses, mt_rates, periods, teffs, ages, radii, dts  = pickle.load(infile)
+                if donor_masses[-1] >= self.query['m1'][1] :
+                    self.logger.info( 'disregarded file ' + filepath
+                                      + ' since the final donor mass is greater than the upper limit of the query')
+                    return None
+                elif accretor_masses[0] <= self.query['m2'][0]:
+                    self.logger.info( 'disregarded file ' + filepath
+                                      + ' since the initial accretor mass is greater than the lower limit of the query' )
+                    return None
+                else:
+                    self.logger.info( 'the file ' + filepath + ' merits further consideration')
+                    return { 'm1': donor_masses
+                         , 'm2': accretor_masses
+                         , 'mt': mt_rates
+                         , 'periods': periods
+                         , 'teffs': teffs
+                         , 'ages': ages
+                         , 'radii': radii
+                         , 'dts': dts }
+
+
+        self.logger.debug('iterating over the ' + str( len(self.view.keys()) ) +  ' candidate files in view')
+        for dbfile in self.view.keys():
+            if dbfile:
+                get_vals( dbfile )
+                exit
+
+        def match_props(data):
+            query = self.query
+            try:
+                if 'm1' in query:
+                    if (data[0] < query['m1'][0] or data[0] > query['m1'][1]):
+                        self.logger.debug("No m1")
+                        return 0
+                if 'm2' in query:
+                    if (data[1] < query['m2'][0] or data[1] > query['m2'][1]):
+                        self.logger.debug("No m2")
+                        return 0
+                if 'mt' in query:
+                    if (data[2] < query['mt'][0] or data[2] > query['mt'][1]):
+                        self.logger.debug("No mt")
+                        return 0
+                if 'p' in query:
+                    if (data[3] < query['p'][0] or data[3] > query['p'][1]):
+                        self.logger.debug("No p")
+                        return 0
+                if 'teff' in query:
+                    if (data[4] < query['teff'][0] or data[4] > query['teff'][1]):
+                        self.logger.debug("No teff")
+                        return 0
+            except Exception as e:
+                errors.append("Error in matching properties")
+                return 0
+
+            return 1
 
     # Binary search algorithm in a list pre-sorted in ascending order
     def search(self, array, element) -> int:
@@ -248,23 +307,6 @@ class ProgenitorSearcher:
         return start
 
 
-    def get_vals(self, filepath) -> dict:
-        with open(filepath, 'rb') as infile:
-            donor_masses, accretor_masses, mt_rates, periods, teffs, ages, radii, dts  = pickle.load(infile)
-            # Ignore simulations where final donor mass is greater than upper limit of donor mass in query.
-            # Similarly, ignore simulations where initial accretor mass is greater than upper limit of accretor mass in query
-            if (     donor_masses[-1]   <= self.query['m1'][1]
-                 and accretor_masses[0] <= self.query['m2'][1] ):
-                return { 'm1': donor_masses
-                         , 'm2': accretor_masses
-                         , 'mt': mt_rates
-                         , 'periods': periods
-                         , 'teffs': teffs
-                         , 'ages': ages
-                         , 'radii': radii
-                         , 'dts': dts }
-            else:
-                return {}
 
     def extract_progens(self, vals) -> None:
 
@@ -309,38 +351,6 @@ class ProgenitorSearcher:
         if not progens:
             raise NoProgensFoundException('No progenitors found')
 
-
-    # Function to look through data files to find progenitors for the query
-    def do_search(self):
-
-        def match_props(data):
-            query = self.query
-            try:
-                if 'm1' in query:
-                    if (data[0] < query['m1'][0] or data[0] > query['m1'][1]):
-                        #print("No m1")
-                        return 0
-                if 'm2' in query:
-                    if (data[1] < query['m2'][0] or data[1] > query['m2'][1]):
-                        #print("No m2")
-                        return 0
-                if 'mt' in query:
-                    if (data[2] < query['mt'][0] or data[2] > query['mt'][1]):
-                        #print("No mt")
-                        return 0
-                if 'p' in query:
-                    if (data[3] < query['p'][0] or data[3] > query['p'][1]):
-                        #print("No p")
-                        return 0
-                if 'teff' in query:
-                    if (data[4] < query['teff'][0] or data[4] > query['teff'][1]):
-                        #print("No teff")
-                        return 0
-            except Exception as e:
-                errors.append("Error in matching properties")
-                return 0
-
-            return 1
 
     def delme(self):
         progens = []
@@ -452,8 +462,8 @@ if __name__ == "__main__":
     logger.info('progenitor tool started. query input file: %s', infile )
     logger.info('database location: %s', db_location )
 
-    db     = ProgenitorDatabase(db_location)
-    query  = ProgenitorQuery(infile)
+    db      = ProgenitorDatabase(db_location)
+    query   = ProgenitorQuery(infile)
     results = ProgenitorSearch(query, db)
 
     exit(0)
