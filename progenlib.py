@@ -168,6 +168,8 @@ class ProgenitorDatabase:
         # The 3.5 is present there because the maximum mass that can be accreted by the black hole is 0.5*7.0 (efficiency*max donor mass) = 3.5
         maxtransferredmass = 7.0 * 0.5
 
+        query = query.query
+
         self.logger.info('creating a view for query: ' + str(query) )
 
         v = filter (  lambda _: _[1]['m1'] >= query['m1'][0]
@@ -203,16 +205,18 @@ class ProgenitorSearcher:
     confs = {}
     progens = []
     errors  = []
+    view = {}
 
     def __init__(self, query: ProgenitorQuery, db: ProgenitorDatabase) -> Null:
 
         self.db = db
-
         self.query = query.query
 
         logger = logging.getLogger ('progentool')
-        logger.info( 'received query qry=' + str(self.query) )
+        logger.info( 'starting search with query qry=' + str(self.query) )
 
+        self.view =  db.view(query)
+        self.do_search()
 
     # Binary search algorithm in a list pre-sorted in ascending order
     def search(self, array, element) -> int:
@@ -242,7 +246,6 @@ class ProgenitorSearcher:
             else:
                 start = mid + 1
         return start
-
 
 
     def get_vals(self, filepath) -> dict:
@@ -339,26 +342,8 @@ class ProgenitorSearcher:
 
             return 1
 
-        query = self.query
-        confs = self.confs
-
+    def delme(self):
         progens = []
-
-        data_paths = []
-        # Select relevant databases to search through
-        if 0 == query['bhns']:
-            data_paths.append(self.db_location)
-        else:
-            for x in self.bh_masses:
-                if(x > query['m2'][1]):
-                    continue
-                if(x < query['m2'][0]-3.5):
-                    continue
-                data_paths.append(self.db_location + '/runs' +str(int(x))+'_data/')
-        print(data_paths)
-
-        print(confs)
-        [print(x) for x in confs.keys()]
 
         # Loop through databases
         for dpath in data_paths:
@@ -467,10 +452,10 @@ if __name__ == "__main__":
     logger.info('progenitor tool started. query input file: %s', infile )
     logger.info('database location: %s', db_location )
 
-    db = ProgenitorDatabase(db_location)
+    db     = ProgenitorDatabase(db_location)
+    query  = ProgenitorQuery(infile)
+    results = ProgenitorSearch(query, db)
 
-    query = ProgenitorQuery(infile)
-    view = db.view(query.query)
     exit(0)
 
     try:
