@@ -156,25 +156,68 @@ class ProgenitorDatabase:
             raise ProgenDBInitException('cannot initialize the database')
 
 
-        self.logger.info('finished building the database, learned about ' + str(len(self.db)) + ' files')
+        self.logger.info('first start through building the database, learned about ' + str(len(self.db)) + ' files')
+        for dbfile in self.db.keys():
+            self.logger.debug ('scanning file ' + dbfile + ' to extract values')
+            with open(dbfile, 'rb') as infile:
+                donor_masses, accretor_masses, mt_rates, periods, teffs, ages, radii, dts  = pickle.load(infile)
 
-    def __str__(self) -> None:
-        return str(self.db)
+            # Donors lose mass, so:
+            self.db[dbfile]['m1_min'] = donor_masses[-1]
+            self.db[dbfile]['m1_max'] = donor_masses[0]
+
+            # Conversely, accretors gain mass:
+            self.db[dbfile]['m2_min'] = accretor_masses[0]
+            self.db[dbfile]['m2_max'] = accretor_masses[-1]
+
+            # Let's also record the time of the first onset of mass transfer:
+            self.db[dbfile]['mt_onset'] = self.first_mt_start(mt_rates)
+
+            self.logger.debug( 'm1_min, m1_max, m2_min, m2_max, mt_onset = '
+                               + str(self.db[dbfile]['m1_min']) + ' ' + str(self.db[dbfile]['m1_max']) + ' '
+                               + str(self.db[dbfile]['m2_min']) + ' ' + str(self.db[dbfile]['m2_max']) + ' '
+                               + str(self.db[dbfile]['mt_onset'])  )
+
+
+    def get_vals( self, filepath: str ) -> dict:
+        with open(filepath, 'rb') as infile:
+            donor_masses, accretor_masses, mt_rates, periods, teffs, ages, radii, dts  = pickle.load(infile)
+            if donor_masses[-1] >= self.query['m1'][1] :
+                self.logger.info( 'disregarded file ' + filepath
+                                  + ' since the final donor mass is greater than the upper limit of the query')
+                return None
+            elif accretor_masses[0] <= self.query['m2'][0]:
+                self.logger.info( 'disregarded file ' + filepath
+                                  + ' since the initial accretor mass is greater than the lower limit of the query' )
+                return None
+            else:
+                self.logger.info( 'the file ' + filepath + ' merits further consideration')
+                return { 'm1': donor_masses
+                     , 'm2': accretor_masses
+                     , 'mt': mt_rates
+                     , 'periods': periods
+                     , 'teffs': teffs
+                     , 'ages': ages
+                     , 'radii': radii
+                     , 'dts': dts }
 
 
     def view(self, query: ProgenitorQuery) -> dict:
         """
         Given a query, restrict the view of candidate data files to the ones within the mass and period range
         """
-        # The 3.5 is present there because the maximum mass that can be accreted by the black hole is 0.5*7.0 (efficiency*max donor mass) = 3.5
+        # The maximum mass that can be accreted by the black hole is 0.5*7.0 (efficiency*max donor mass) = 3.5
         maxtransferredmass = 7.0 * 0.5
 
         query = query.query
 
         self.logger.info('creating a view for query: ' + str(query) )
 
-        v = dict (filter (  lambda _: _[1]['m1'] >= query['m1'][0]
-                      and       _[1]['isbh'] == query['bhns']
+        v = dict (filter (
+            lambda _:      _[1]['m1']   >= query['m1'][0]
+                      and  _[1]['isbh'] == query['bhns']
+                      and  _[1]['m1_max'] <= query['m1'][1]    # final donor mass should be smaller than the upper limit of the query
+                      and  _[1]['m2_min'] >= query['m2'][0]    # initial accretor mass should be greater than the lower limit of the query
                       and ( True if not _[1]['isbh']
                             else (     _[1]['m2'] < query['m2'][1]
                                    and _[1]['m2'] > query['m2'][0] - maxtransferredmass ) )
@@ -185,7 +228,7 @@ class ProgenitorDatabase:
         return v
 
     # Function to find index where system starts MT
-    def find_mt_start(find, mt_arr):
+    def first_mt_start(self, mt_arr):
 
         idx_start = 0
 
@@ -199,6 +242,8 @@ class ProgenitorDatabase:
 
         return idx_start
 
+    def __str__(self) -> None:
+        return str(self.db)
 
 class ProgenitorSearch:
 
@@ -218,28 +263,6 @@ class ProgenitorSearch:
 
     # Function to look through data files to find progenitors for the query
     def do_search(self):
-
-        def get_vals(filepath: str) -> dict:
-            with open(filepath, 'rb') as infile:
-                donor_masses, accretor_masses, mt_rates, periods, teffs, ages, radii, dts  = pickle.load(infile)
-                if donor_masses[-1] >= self.query['m1'][1] :
-                    self.logger.info( 'disregarded file ' + filepath
-                                      + ' since the final donor mass is greater than the upper limit of the query')
-                    return None
-                elif accretor_masses[0] <= self.query['m2'][0]:
-                    self.logger.info( 'disregarded file ' + filepath
-                                      + ' since the initial accretor mass is greater than the lower limit of the query' )
-                    return None
-                else:
-                    self.logger.info( 'the file ' + filepath + ' merits further consideration')
-                    return { 'm1': donor_masses
-                         , 'm2': accretor_masses
-                         , 'mt': mt_rates
-                         , 'periods': periods
-                         , 'teffs': teffs
-                         , 'ages': ages
-                         , 'radii': radii
-                         , 'dts': dts }
 
 
         self.logger.debug('iterating over the ' + str( len(self.view.keys()) ) +  ' candidate files in view')
