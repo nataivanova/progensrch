@@ -98,6 +98,8 @@ class ProgenitorQuery:
         if (errors):
             raise QueryParametersException(errors)
 
+
+
 class ProgenitorDatabase:
     """ Instanciate this class to initialize the interface to the database.
         In the initial implementation, the database is a collection of flat files.
@@ -156,22 +158,23 @@ class ProgenitorDatabase:
 
 
         self.logger.info('first start through building the database, learned about ' + str(len(self.db)) + " files.\n Now caching some data..." )
-        self.logger.info('now ')
+
+        nomt = []
 
         for dbfile in self.db.keys():
             self.logger.debug ('scanning file ' + dbfile + ' to extract values')
             with open(dbfile, 'rb') as infile:
                 donor_masses, accretor_masses, mt_rates, periods, teffs, ages, radii, dts  = pickle.load(infile)
 
-            # Donors lose mass, so:
+            # Donors only lose mass, so:
             self.db[dbfile]['m1_min'] = donor_masses[-1]
             self.db[dbfile]['m1_max'] = donor_masses[0]
 
-            # Conversely, accretors gain mass:
+            # Conversely, accretors only gain mass:
             self.db[dbfile]['m2_min'] = accretor_masses[0]
             self.db[dbfile]['m2_max'] = accretor_masses[-1]
 
-            # Let's also record the time of the first onset of mass transfer:
+            self.logger.debug('trying to find the first onset of mass transfer for ' + dbfile)
             self.db[dbfile]['mt_onset'] = self.first_mt_start(mt_rates)
 
             self.logger.debug( 'm1_min, m1_max, m2_min, m2_max, mt_onset = '
@@ -179,21 +182,18 @@ class ProgenitorDatabase:
                                + str(self.db[dbfile]['m2_min']) + ' ' + str(self.db[dbfile]['m2_max']) + ' '
                                + str(self.db[dbfile]['mt_onset'])  )
 
+            if self.db[dbfile]['mt_onset'] < 0:
+                nomt.append(dbfile)
+
+        for dbfile in nomt:
+            self.logger.info('removing ' + dbfile + ' from the database for lack of MT')
+            del self.db[dbfile]
+
 
     def get_vals( self, filepath: str ) -> dict:
         with open(filepath, 'rb') as infile:
             donor_masses, accretor_masses, mt_rates, periods, teffs, ages, radii, dts  = pickle.load(infile)
-            if donor_masses[-1] >= self.query['m1'][1] :
-                self.logger.info( 'disregarded file ' + filepath
-                                  + ' since the final donor mass is greater than the upper limit of the query')
-                return None
-            elif accretor_masses[0] <= self.query['m2'][0]:
-                self.logger.info( 'disregarded file ' + filepath
-                                  + ' since the initial accretor mass is greater than the lower limit of the query' )
-                return None
-            else:
-                self.logger.info( 'the file ' + filepath + ' merits further consideration')
-                return { 'm1': donor_masses
+            return { 'm1': donor_masses
                      , 'm2': accretor_masses
                      , 'mt': mt_rates
                      , 'periods': periods
@@ -201,6 +201,7 @@ class ProgenitorDatabase:
                      , 'ages': ages
                      , 'radii': radii
                      , 'dts': dts }
+
 
     def view(self, query: ProgenitorQuery) -> dict:
         """
@@ -231,33 +232,35 @@ class ProgenitorDatabase:
                 return False
             return True
 
-        v = { dbfile:value for (dbfile, value) in self.db.items()
-              if   value['m1_min'] >= query['m1'][0]
-              and  value['m1_max'] <= query['m1'][1]    # final donor mass should be smaller than the upper limit of the query
-              and  value['isbh'] == query['bhns']
-              and  value['m2_min'] >= query['m2'][0]    # initial accretor mass should be greater than the lower limit of the query
-              and ( True if not value['isbh']
-                    else (     value['m2'] < query['m2'][1]
-                               and value['m2'] > query['m2'][0] - maxtransferredmass ) ) }
+        v = { dbfile:value
+              for (dbfile, value)
+              in self.db.items()
+              if   viewfilter(dbfile, value, query) }
 
         self.logger.info('built view with ' + str(len(v)) + ' candidate data files' )
 
         return v
 
-    # Function to find index where system starts MT
-    def first_mt_start(self, mt_arr):
 
-        idx_start = 0
+    def first_mt_start(self, mt: list) -> int:
+        """ Declare MT to have started if MT rate exceeds the threshhold over several
+        consecutive values, defined by constants window and threshhold in the method"""
 
-        if len(mt_arr) <= 5:
-            return idx_start
+        window = 4
+        threshhold = -15
 
-        for i in range(len(mt_arr)-3):
-            if ( mt_arr[i] >= -15 and mt_arr[i+1] >= -15 and mt_arr[i+2] >= -15 and mt_arr[i+3] >= -15):
-                idx_start = i
-                break
+        if len(mt) <= window + 1:
+            self.logger.debug('track too small, assume MT starts at position 0')
+            return 0
 
-        return idx_start
+        for i in range( len(mt) - (window-1) ) :
+            if min( mt[i:i+window] )  >= threshhold:
+                self.logger.debug( 'MT starts at position ' + str(i) )
+                return i
+
+        self.logger.debug('no MT!')
+        return -1
+
 
     def __str__(self) -> None:
         return str(self.db)
