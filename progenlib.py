@@ -113,13 +113,40 @@ class ProgenitorDatabase:
 
     db = {}
 
-    def __init__(self, db_location):
+    def __init__(self, db_location: str) -> None:
         """ Read the file system structure and set up the mapping
             file name -> mass ranges
+            A cache is set up and pickled to the file system,
+            and is used to initialize the in-memory db by default.
         """
 
         self.logger.info("initializing the database")
 
+        cache_location = db_location + '/db.pickle'
+        try:
+            with open(cache_location, 'rb') as cached_db:
+                self.db = pickle.load(cached_db)
+                self.logger.warning ('loaded cached database. If this is not desired, delete the file'
+                                     + cache_location + ' to forcefully reinitialize the cache.')
+        except Exception as e:
+            self.logger.warning ('no db cache found. Reading db files from disk and initializing the cache. '
+                                + 'This may take a while')
+            self.init_cache(cache_location)
+            self.save_cache(cache_location)
+
+        self.logger.info("loaded database with " + str(len(self.db)) + " files")
+
+
+    def save_cache(self, cache_location: str) -> None:
+        try:
+            with open(cache_location, 'wb') as cached_db:
+                pickle.dump (self.db, cached_db)
+        except Exception as e:
+            self.logger.error('cannot write the cache to location '
+                              + cache_location
+                              + "\n Will endeavour to proceed")
+
+    def init_cache(self):
         try:
             for root, dirs, files in os.walk(db_location, followlinks=True):
                 self.logger.debug ('walking the file system. We are at ' + root
@@ -174,6 +201,22 @@ class ProgenitorDatabase:
             self.db[dbfile]['m2_min'] = accretor_masses[0]
             self.db[dbfile]['m2_max'] = accretor_masses[-1]
 
+            # MT min/max:
+            self.db[dbfile]['mt_min'] = min(mt_rates)
+            self.db[dbfile]['mt_max'] = max(mt_rates)
+
+            # period min/max:
+            self.db[dbfile]['p_min'] = min(periods)
+            self.db[dbfile]['p_max'] = max(periods)
+
+            # Teff min/max
+            self.db[dbfile]['t_min'] = min(teffs)
+            self.db[dbfile]['t_max'] = max(teffs)
+
+            # donor radius min/max
+            self.db[dbfile]['r_min'] = min(radii)
+            self.db[dbfile]['r_max'] = max(radii)
+
             self.logger.debug('trying to find the first onset of mass transfer for ' + dbfile)
             self.db[dbfile]['mt_onset'] = self.first_mt_start(mt_rates)
 
@@ -213,6 +256,9 @@ class ProgenitorDatabase:
         self.logger.info('creating a view for query: ' + str(query) )
 
         def viewfilter(dbfile: str, vals: dict, query: dict) -> bool:
+            """Interval intersections for the requested query parameters
+               and values recorded in the evolution track
+            """
 
             self.logger.debug('comparing query parameters with db metadata for ' + dbfile )
             if vals['isbh'] != query['bhns']:
@@ -230,6 +276,25 @@ class ProgenitorDatabase:
             if vals['m2_max'] < query['m2'][0]:
                 self.logger.debug('max accretor mass smaller than min in the query')
                 return False
+            if vals['mt_min'] > query['mt'][1]:
+                self.logger.debug('min MT rate greater than max in the query')
+                return False
+            if vals['mt_max'] < query['mt'][0]:
+                self.logger.debug('max MT rate smaller than min in the query')
+                return False
+            if vals['p_min'] > query['p'][1]:
+                self.logger.debug('min period greater than max in query')
+                return False
+            if vals['p_max'] < query['p'][0]:
+                self.logger.debug('max period smaller than min in query')
+                return False
+            if vals['t_min'] > query['teff'][1]:
+                self.logger.debug('min Teff exceeds max in query')
+                return False
+            if vals['t_max'] < query['teff'][0]:
+                self.logger.debug('max Teff exceeds min in query')
+                return False
+
             return True
 
         v = { dbfile:value
@@ -238,6 +303,7 @@ class ProgenitorDatabase:
               if   viewfilter(dbfile, value, query) }
 
         self.logger.info('built view with ' + str(len(v)) + ' candidate data files' )
+        self.logger.debug('the following files are included in the view:' + str(v.keys()))
 
         return v
 
@@ -269,7 +335,6 @@ class ProgenitorDatabase:
 class ProgenitorSearch:
 
     progens = []
-    errors  = []
 
     def __init__(self, query: ProgenitorQuery, db: ProgenitorDatabase) -> None:
 
@@ -282,44 +347,16 @@ class ProgenitorSearch:
         self.view =  db.view(query)
         self.do_search()
 
-    # Function to look through data files to find progenitors for the query
+
     def do_search(self):
+        """Find files matching query parameters"""
 
-
-        self.logger.debug('iterating over the ' + str( len(self.view.keys()) ) +  ' candidate files in view')
+        self.logger.debug('iterating over the '
+                          + str( len(self.view.keys()) )
+                          +  ' candidate files in view')
         for dbfile in self.view.keys():
-            if dbfile:
-                get_vals( dbfile )
-                exit
+            pass
 
-        def match_props(data):
-            query = self.query
-            try:
-                if 'm1' in query:
-                    if (data[0] < query['m1'][0] or data[0] > query['m1'][1]):
-                        self.logger.debug("No m1")
-                        return 0
-                if 'm2' in query:
-                    if (data[1] < query['m2'][0] or data[1] > query['m2'][1]):
-                        self.logger.debug("No m2")
-                        return 0
-                if 'mt' in query:
-                    if (data[2] < query['mt'][0] or data[2] > query['mt'][1]):
-                        self.logger.debug("No mt")
-                        return 0
-                if 'p' in query:
-                    if (data[3] < query['p'][0] or data[3] > query['p'][1]):
-                        self.logger.debug("No p")
-                        return 0
-                if 'teff' in query:
-                    if (data[4] < query['teff'][0] or data[4] > query['teff'][1]):
-                        self.logger.debug("No teff")
-                        return 0
-            except Exception as e:
-                errors.append("Error in matching properties")
-                return 0
-
-            return 1
 
     # Binary search algorithm in a list pre-sorted in ascending order
     def search(self, array, element) -> int:
@@ -353,17 +390,6 @@ class ProgenitorSearch:
 
 
     def extract_progens(self, vals) -> None:
-
-        def match_props(data) -> bool:
-            query = self.query
-            if (  data[1] < query['m2'][0]      or data[1] > query['m2'][1]
-                  or data[2] < query['mt'][0]   or data[2] > query['mt'][1]
-                  or data[3] < query['p'][0]    or data[3] > query['p'][1]
-                  or data[4] < query['teff'][0] or data[4] > query['teff'][1]
-                  or data[0] < query['m1'][0]   or data[0] > query['m1'][1]):
-                return False
-            else:
-                return True
 
         flag, pflag, start_m1, end_m1 = 0, 0, 0, 0
         start_m1, end_m1 = self.search(vals['m1'], query['m1'][0]),   self.search(vals['m1'], query['m1'][1])
