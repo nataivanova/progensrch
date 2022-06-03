@@ -131,7 +131,7 @@ class ProgenitorDatabase:
         except Exception as e:
             self.logger.warning ('no db cache found. Reading db files from disk and initializing the cache. '
                                 + 'This may take a while')
-            self.init_cache(cache_location)
+            self.init_cache(db_location)
             self.save_cache(cache_location)
 
         self.logger.info("loaded database with " + str(len(self.db)) + " files")
@@ -146,7 +146,7 @@ class ProgenitorDatabase:
                               + cache_location
                               + "\n Will endeavour to proceed")
 
-    def init_cache(self):
+    def init_cache(self, db_location: str) -> None:
         try:
             for root, dirs, files in os.walk(db_location, followlinks=True):
                 self.logger.debug ('walking the file system. We are at ' + root
@@ -229,7 +229,7 @@ class ProgenitorDatabase:
                 nomt.append(dbfile)
 
         for dbfile in nomt:
-            self.logger.info('removing ' + dbfile + ' from the database for lack of MT')
+            self.logger.info('pruning ' + dbfile + ' from the database for lack of MT')
             del self.db[dbfile]
 
 
@@ -382,12 +382,13 @@ if __name__ == "__main__":
     db_location = os.environ['DB_LOCATION']
 
     logger = logging.getLogger('progentool')
-    if sys.environ['DEBUG']:
+    if 'DEBUG' in os.environ:
         logging.basicConfig( level = logging.DEBUG
                              , format = 'id=' +  req_id + ', t=%(asctime)s, message=%(message)s' )
     else:
         logging.basicConfig( level = logging.INFO
                              , format = 'id=' +  req_id + ', t=%(asctime)s, message=%(message)s' )
+
     logger.info('progenitor tool started. query input file: %s', infile )
     logger.info('database location: %s', db_location )
 
@@ -395,24 +396,4 @@ if __name__ == "__main__":
     query   = ProgenitorQuery(infile)
     results = ProgenitorSearch(query, db)
 
-    exit(0)
-
-    try:
-        s = ProgenitorSearcher(qry.query, db_location)
-    except QueryParametersException as e:
-        logger.error(e)
-        exit (1)
-
-    try:
-        s.do_search()
-    except Exception as e:
-        print (type(e), str(e))
-    print(s)
-    outpath = '/tmp/' + req_id + '.result'
-    outfile = open(outpath, 'wb')
-    outfile.write(bytes(str(s), 'UTF-8'))
-    outfile.flush()
-    outfile.close()
-    outfile = open(outpath, 'rb')
-    for i in outfile:
-        print(i)
+    print(results)
