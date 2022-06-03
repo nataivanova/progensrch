@@ -353,73 +353,9 @@ class ProgenitorSearch:
 
         self.logger.debug('iterating over the '
                           + str( len(self.view.keys()) )
-                          +  ' candidate files in view')
+                          + ' candidate files in view')
         for dbfile in self.view.keys():
             pass
-
-
-    # Binary search algorithm in a list pre-sorted in ascending order
-    def search(self, array, element) -> int:
-
-        if element <= array[0]:
-            return 0
-        if element >= array[-1]:
-            return len(array) - 1
-
-        mid = 0
-        start = 0
-        end = len(array)
-        step = 0
-
-        while (start <= end):
-            step = step+1
-            mid = (start + end) // 2
-
-            if mid == len(array):
-                return len(array)-1
-
-            if element == array[mid]:
-                return mid
-
-            if element > array[mid]:
-                end = mid - 1
-            else:
-                start = mid + 1
-        return start
-
-
-
-    def extract_progens(self, vals) -> None:
-
-        flag, pflag, start_m1, end_m1 = 0, 0, 0, 0
-        start_m1, end_m1 = self.search(vals['m1'], query['m1'][0]),   self.search(vals['m1'], query['m1'][1])
-
-        idx_low = -1
-        idx_high = -1
-        obs_time = 0.0
-        mt_start = 0
-        for k in range(start_m, end_m+1):
-            if match_props( [ vals[_][k] for _ in ['m1', 'm2', 'mt', 'p', 'teff'] ] ):
-                idx_low = k
-            if (   (flag    and idx_low != -1 and idx_high == -1)
-                   or (flag and k == end_m    and idx_high == -1) ):
-                pflag = 1
-                idx_high = k
-                obs_time = obs_time + vals[5][idx_high]-vals[5][idx_low]
-                idx_low = -1
-                idx_high = -1
-                # If simulated system spends time as the observed system, find start of MT information and add to list of progenitors
-            if pflag:
-                mt_start = self.find_mt_start(vals[2])
-                tot_time = vals[5][-1]-vals[5][0]
-                progens.append([i,j,vals[1][0],obs_time,tot_time,vals[0][mt_start],np.log10(vals[3][mt_start])])
-                print("Found Progenitor -> "+fpath)
-            else:
-                print("No path found: "+fpath)
-
-        self.progens = progens
-        if not progens:
-            raise NoProgensFoundException('No progenitors found')
 
 
     def __str__(self):
