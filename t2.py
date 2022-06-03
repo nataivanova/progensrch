@@ -4,10 +4,6 @@ import os
 import tempfile
 import logging
 
-import numpy as np
-import os
-import pickle
-
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 from telegram.ext import Updater, MessageHandler, Filters
@@ -17,6 +13,8 @@ BOT_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 import uuid
 import progenlib as p
 import os
+
+
 
 def progen_search(req_id):
     x = p.ProgenitorQuery('/tmp/' + req_id)
