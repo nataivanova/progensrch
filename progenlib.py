@@ -217,6 +217,8 @@ class ProgenitorDatabase:
             self.db[dbfile]['r_min'] = min(radii)
             self.db[dbfile]['r_max'] = max(radii)
 
+            self.db[dbfile]['total_time'] = ages[-1] - ages[0]
+
             self.logger.debug('trying to find the first onset of mass transfer for ' + dbfile)
             self.db[dbfile]['mt_onset'] = self.first_mt_start(mt_rates)
 
@@ -334,9 +336,12 @@ class ProgenitorDatabase:
 
 class ProgenitorSearch:
 
-    progens = []
+    progens = {}
+    match_idx = {}
 
-    def __init__(self, query: ProgenitorQuery, db: ProgenitorDatabase) -> None:
+    def __init__( self
+                 , query: ProgenitorQuery
+                 , db: ProgenitorDatabase ) -> None:
 
         self.db = db
         self.query = query.query
@@ -355,20 +360,43 @@ class ProgenitorSearch:
                           + str( len(self.view.keys()) )
                           + ' candidate files in view')
         for dbfile in self.view.keys():
-            pass
+            vals = db.get_vals(dbfile)
+            self.match_idx[dbfile] = [ idx for idx in range(len(vals['m1']))
+                                       if match_props( vals['m1'][idx]
+                                                       , vals['m2'][idx]
+                                                       , vals['mt'][idx]
+                                                       , vals['teff'][idx]
+                                                       , vals['p'][idx]) ]
 
+            self.progens[dbfile] = { 'm1_0': self.db[dbfile]['m1']
+                                     , 'p_0': self.db[dbfile]['p']
+                                     , 'm2_0': self.db[dbfile]['m2_min']
+                                     , 'total_time': self.db[dbfile]['total_time']
+                                     , 'observed_time': sum( [ 10**x
+                                                               for x
+                                                               in [ vals['dts'][idx]
+                                                                    for idx in match_idx[dbfile] ] ] )
+                                     , 'm1_at_mt_onset': vals['m1'][self.db[dbfile]['mt_onset']]
+                                     , 'log10_p_at_mt_onset': np.log10( vals['p'][self.db[dbfile]['mt_onset']] ) }
+
+    def match_props(data: dict) -> bool:
+            query = self.query
+            if (  data['m2']      < query['m2'][0]   or data['m2']   > query['m2'][1]
+                  or data['mt']   < query['mt'][0]   or data['mt']   > query['mt'][1]
+                  or data['p']    < query['p'][0]    or data['p']    > query['p'][1]
+                  or data['teff'] < query['teff'][0] or data['teff'] > query['teff'][1]
+                  or data['m1']   < query['m1'][0]   or data['m1']   > query['m1'][1]):
+                return False
+            else:
+                return True
 
     def __str__(self):
         s = ''
-        for i in self.progens:
-            s += (    f'{i[0]:.2f}' + ' '
-                    + f'{i[1]:.2f}' + ' '
-                    + f'{i[2]:.2f}' + ' '
-                    + f'{i[3]:.4f}' + ' '
-                    + f'{i[4]:.4f}' + ' '
-                    + f'{i[5]:.4f}' + ' '
-                    + f'{i[6]:.4f}'
-                    +'\n')
+        for progen in self.progens.values():
+            for param in [ 'm1_0', 'p_0', 'm2_0', 'total_time', 'observed_time'
+                           , 'm1_at_mt_onset', 'log10_p_at_mt_onset' ]:
+                s += f'{progen[param]:.4f}' + ' '
+            s += "\n"
 
         return (s)
 
