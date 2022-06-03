@@ -119,15 +119,14 @@ class ProgenitorDatabase:
         self.logger.info("initializing the database")
 
         try:
-            os.stat(db_location)
             for root, dirs, files in os.walk(db_location, followlinks=True):
-                logger.debug ('walking the file system. We are at ' + root
+                self.logger.debug ('walking the file system. We are at ' + root
                               + 'and see dirs '    + str(dirs)
                               + 'as well as files' + str(files) )
 
                 for file in files:
                     fullpath = root + '/' + file
-                    logger.debug('pondering over file ' + fullpath)
+                    self.logger.debug('pondering over file ' + fullpath)
 
                     f = re.match(  r"""m_(?P<m1>\d+\.?\d+)_p_(?P<p>-?\d+\.?\d+)\.data$"""
                                    , file
@@ -156,7 +155,9 @@ class ProgenitorDatabase:
             raise ProgenDBInitException('cannot initialize the database')
 
 
-        self.logger.info('first start through building the database, learned about ' + str(len(self.db)) + ' files')
+        self.logger.info('first start through building the database, learned about ' + str(len(self.db)) + " files.\n Now caching some data..." )
+        self.logger.info('now ')
+
         for dbfile in self.db.keys():
             self.logger.debug ('scanning file ' + dbfile + ' to extract values')
             with open(dbfile, 'rb') as infile:
@@ -201,27 +202,43 @@ class ProgenitorDatabase:
                      , 'radii': radii
                      , 'dts': dts }
 
-
     def view(self, query: ProgenitorQuery) -> dict:
         """
         Given a query, restrict the view of candidate data files to the ones within the mass and period range
         """
-        # The maximum mass that can be accreted by the black hole is 0.5*7.0 (efficiency*max donor mass) = 3.5
-        maxtransferredmass = 7.0 * 0.5
 
         query = query.query
 
         self.logger.info('creating a view for query: ' + str(query) )
 
-        v = dict (filter (
-            lambda _:      _[1]['m1']   >= query['m1'][0]
-                      and  _[1]['isbh'] == query['bhns']
-                      and  _[1]['m1_max'] <= query['m1'][1]    # final donor mass should be smaller than the upper limit of the query
-                      and  _[1]['m2_min'] >= query['m2'][0]    # initial accretor mass should be greater than the lower limit of the query
-                      and ( True if not _[1]['isbh']
-                            else (     _[1]['m2'] < query['m2'][1]
-                                   and _[1]['m2'] > query['m2'][0] - maxtransferredmass ) )
-                      , self.db.items()) )
+        def viewfilter(dbfile: str, vals: dict, query: dict) -> bool:
+
+            self.logger.debug('comparing query parameters with db metadata for ' + dbfile )
+            if vals['isbh'] != query['bhns']:
+                self.logger.debug('compact object mismatch')
+                return False
+            if vals['m1_min'] > query['m1'][1]:
+                self.logger.debug('min donor mass greater than max in the query')
+                return False
+            if vals['m1_max'] < query['m1'][0]:
+                self.logger.debug('max donor mass smaller than the min in the query')
+                return False
+            if vals['m2_min'] > query['m2'][1]:
+                self.logger.debug('min accretor mass grater than max in the query')
+                return False
+            if vals['m2_max'] < query['m2'][0]:
+                self.logger.debug('max accretor mass smaller than min in the query')
+                return False
+            return True
+
+        v = { dbfile:value for (dbfile, value) in self.db.items()
+              if   value['m1_min'] >= query['m1'][0]
+              and  value['m1_max'] <= query['m1'][1]    # final donor mass should be smaller than the upper limit of the query
+              and  value['isbh'] == query['bhns']
+              and  value['m2_min'] >= query['m2'][0]    # initial accretor mass should be greater than the lower limit of the query
+              and ( True if not value['isbh']
+                    else (     value['m2'] < query['m2'][1]
+                               and value['m2'] > query['m2'][0] - maxtransferredmass ) ) }
 
         self.logger.info('built view with ' + str(len(v)) + ' candidate data files' )
 
@@ -244,6 +261,7 @@ class ProgenitorDatabase:
 
     def __str__(self) -> None:
         return str(self.db)
+
 
 class ProgenitorSearch:
 
