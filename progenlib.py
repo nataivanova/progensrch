@@ -382,8 +382,12 @@ if __name__ == "__main__":
     db_location = os.environ['DB_LOCATION']
 
     logger = logging.getLogger('progentool')
-    logging.basicConfig( level = logging.INFO
-                        , format = 'id=' +  req_id + ', t=%(asctime)s, message=%(message)s' )
+    if sys.environ['DEBUG']:
+        logging.basicConfig( level = logging.DEBUG
+                             , format = 'id=' +  req_id + ', t=%(asctime)s, message=%(message)s' )
+    else:
+        logging.basicConfig( level = logging.INFO
+                             , format = 'id=' +  req_id + ', t=%(asctime)s, message=%(message)s' )
     logger.info('progenitor tool started. query input file: %s', infile )
     logger.info('database location: %s', db_location )
 
