@@ -27,6 +27,7 @@ class NoProgensFoundException(ProgenSearchException):
 
 
 class ProgenitorQuery:
+    """Parse the input file, perform basic validation, store the query parameters in a dict."""
 
     # m1 -> Donor Mass {Msol}
     # m2 -> Accretor Mass {Msol}
@@ -356,36 +357,38 @@ class ProgenitorSearch:
     def do_search(self):
         """Find files matching query parameters"""
 
-        self.logger.debug('iterating over the '
+        self.logger.info('iterating over the '
                           + str( len(self.view.keys()) )
                           + ' candidate files in view')
-        for dbfile in self.view.keys():
-            vals = db.get_vals(dbfile)
-            self.match_idx[dbfile] = [ idx for idx in range(len(vals['m1']))
-                                       if match_props( vals['m1'][idx]
-                                                       , vals['m2'][idx]
-                                                       , vals['mt'][idx]
-                                                       , vals['teff'][idx]
-                                                       , vals['p'][idx]) ]
 
-            self.progens[dbfile] = { 'm1_0': self.db[dbfile]['m1']
-                                     , 'p_0': self.db[dbfile]['p']
-                                     , 'm2_0': self.db[dbfile]['m2_min']
-                                     , 'total_time': self.db[dbfile]['total_time']
+        for dbfile in self.view.keys():
+            self.logger.debug('searching through ' + dbfile)
+            vals = self.db.get_vals(dbfile)
+            self.match_idx[dbfile] = [ idx for idx in range(len(vals['m1']))
+                                       if self.match_props( { 'm1': vals['m1'][idx]
+                                                              , 'm2': vals['m2'][idx]
+                                                              , 'mt': vals['mt'][idx]
+                                                              , 'teff': vals['teffs'][idx]
+                                                              , 'p': vals['periods'][idx] } )  ]
+
+            self.progens[dbfile] = { 'm1_0': self.db.db[dbfile]['m1']
+                                     , 'p_0': self.db.db[dbfile]['p']
+                                     , 'm2_0': self.db.db[dbfile]['m2_min']
+                                     , 'total_time': self.db.db[dbfile]['total_time']
                                      , 'observed_time': sum( [ 10**x
                                                                for x
                                                                in [ vals['dts'][idx]
-                                                                    for idx in match_idx[dbfile] ] ] )
-                                     , 'm1_at_mt_onset': vals['m1'][self.db[dbfile]['mt_onset']]
-                                     , 'log10_p_at_mt_onset': np.log10( vals['p'][self.db[dbfile]['mt_onset']] ) }
+                                                                    for idx in self.match_idx[dbfile] ] ] )
+                                     , 'm1_at_mt_onset': vals['m1'][self.db.db[dbfile]['mt_onset']]
+                                     , 'log10_p_at_mt_onset': np.log10( vals['periods'][self.db.db[dbfile]['mt_onset']] ) }
 
-    def match_props(data: dict) -> bool:
+    def match_props(self, data: dict) -> bool:
             query = self.query
-            if (  data['m2']      < query['m2'][0]   or data['m2']   > query['m2'][1]
-                  or data['mt']   < query['mt'][0]   or data['mt']   > query['mt'][1]
+            if (  data['mt']      < query['mt'][0]   or data['mt']   > query['mt'][1]
                   or data['p']    < query['p'][0]    or data['p']    > query['p'][1]
                   or data['teff'] < query['teff'][0] or data['teff'] > query['teff'][1]
-                  or data['m1']   < query['m1'][0]   or data['m1']   > query['m1'][1]):
+                  or data['m1']   < query['m1'][0]   or data['m1']   > query['m1'][1]
+                  or data['m2']   < query['m2'][0]   or data['m2']   > query['m2'][1] ):
                 return False
             else:
                 return True
@@ -393,7 +396,7 @@ class ProgenitorSearch:
     def __str__(self):
         s = ''
         for progen in self.progens.values():
-            for param in [ 'm1_0', 'p_0', 'm2_0', 'total_time', 'observed_time'
+            for param in [ 'm1_0', 'p_0', 'm2_0', 'observed_time', 'total_time'
                            , 'm1_at_mt_onset', 'log10_p_at_mt_onset' ]:
                 s += f'{progen[param]:.4f}' + ' '
             s += "\n"
