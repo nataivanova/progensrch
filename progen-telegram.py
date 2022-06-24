@@ -6,13 +6,16 @@ import logging
 from progenlib import *
 from telegram.ext import Updater, MessageHandler, CommandHandler, Filters
 
-logger = logging.getLogger('progen tool - telegram')
+logger = logging.getLogger(__name__)
 req_id = 'startup'
 logging.basicConfig( level=logging.INFO
                     , format = 'id=' +  req_id + ', t=%(asctime)s, level=%(levelname)s, message=%(message)s' )
 
 BOT_TOKEN = os.environ.get('TELEGRAM_TOKEN')
-db_location = os.environ['DB_LOCATION']
+if 'DB_LOCATION' in os.environ:
+    db_location = os.environ['DB_LOCATION']
+else:
+    db_location = '/srv/progen_tool'
 
 db = ProgenitorDatabase(db_location)
 

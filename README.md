@@ -22,3 +22,11 @@ The path to query file is the first command line argument, as follows:
  DB_LOCATION='/path/to/database/' ./progenlib.py ./sample_query.txt
 ```
 
+## Run the telegram tool in a container
+
+``` console
+podman run --name progentool --restart unless-stopped \
+    -v /path/to/database:/srv/progen_tool \
+    -e TELEGRAM_TOKEN=$(</path/to/saved/telegram/token) \
+    progentool
+```
