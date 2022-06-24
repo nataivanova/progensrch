@@ -371,16 +371,22 @@ class ProgenitorSearch:
                                                               , 'teff': vals['teffs'][idx]
                                                               , 'p': vals['periods'][idx] } )  ]
 
-            self.progens[dbfile] = { 'm1_0': self.db.db[dbfile]['m1']
-                                     , 'p_0': self.db.db[dbfile]['p']
-                                     , 'm2_0': self.db.db[dbfile]['m2_min']
-                                     , 'total_time': self.db.db[dbfile]['total_time']
-                                     , 'observed_time': sum( [ 10**x
-                                                               for x
-                                                               in [ vals['dts'][idx]
-                                                                    for idx in self.match_idx[dbfile] ] ] )
-                                     , 'm1_at_mt_onset': vals['m1'][self.db.db[dbfile]['mt_onset']]
-                                     , 'log10_p_at_mt_onset': np.log10( vals['periods'][self.db.db[dbfile]['mt_onset']] ) }
+            if len(self.match_idx[dbfile]):
+                self.logger.debug (self.match_idx)
+                self.progens[dbfile] = { 'm1_0'            : self.db.db[dbfile]['m1']
+                                         , 'p_0'           : self.db.db[dbfile]['p']
+                                         , 'm2_0'          : self.db.db[dbfile]['m2_min']
+                                         , 'total_time'    : self.db.db[dbfile]['total_time']
+                                         , 'observed_time' : sum( [ 10**x
+                                                                   for x
+                                                                   in [ vals['dts'][idx]
+                                                                        for idx in self.match_idx[dbfile] ] ] )
+                                         , 'm1_at_mt_onset'      : vals['m1'][self.db.db[dbfile]['mt_onset']]
+                                         , 'log10_p_at_mt_onset' : np.log10( vals['periods'][self.db.db[dbfile]['mt_onset']] )
+                                         , 'm2_at_query_mt_start': vals['m2'][self.match_idx[dbfile][0]]
+                                         , 'm2_at_query_mt_end'  : vals['m2'][self.match_idx[dbfile][-1]]
+                                         , 'age_at_query_mt_start': vals['ages'][self.match_idx[dbfile][0]]
+                                         , 'age_at_query_mt_end'  : vals['ages'][self.match_idx[dbfile][-1]] }
 
     def match_props(self, data: dict) -> bool:
             query = self.query
@@ -397,7 +403,9 @@ class ProgenitorSearch:
         s = ''
         for progen in self.progens.values():
             for param in [ 'm1_0', 'p_0', 'm2_0', 'observed_time', 'total_time'
-                           , 'm1_at_mt_onset', 'log10_p_at_mt_onset' ]:
+                           , 'm1_at_mt_onset', 'log10_p_at_mt_onset'
+                           , 'm2_at_query_mt_start', 'm2_at_query_mt_end'
+                           , 'age_at_query_mt_start', 'age_at_query_mt_end']:
                 s += f'{progen[param]:.4f}' + ' '
             s += "\n"
 
