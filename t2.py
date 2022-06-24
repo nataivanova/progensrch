@@ -3,40 +3,42 @@
 import os
 import uuid
 import logging
-import progenlib as p
+from progenlib import *
 from telegram.ext import Updater, MessageHandler, Filters
 
-logger = logging.getLogger('progen tool')
+logger = logging.getLogger('progen tool - telegram')
+req_id = 'startup'
 logging.basicConfig( level=logging.INFO
-                    , format = 'id=' +  req_id + ', t=%(asctime)s, level=%(levelname), message=%(message)s' )
+                    , format = 'id=' +  req_id + ', t=%(asctime)s, level=%(levelname)s, message=%(message)s' )
 
 BOT_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 db_location = os.environ['DB_LOCATION']
 
-db = p.ProgenitorDatabase(db_location)
-
-def progen_search(req_id):
-    query   = p.ProgenitorQuery('/tmp/' + req_id)
-    results = p.ProgenitorSearch(query, db)
-    s.do_search()
-    return s
+db = ProgenitorDatabase(db_location)
 
 def downloader(update, context):
 
     req_id = str(uuid.uuid4())
+    logging.basicConfig( level=logging.INFO
+                    , format = 'id=' +  req_id + ', t=%(asctime)s, level=%(levelname)s, message=%(message)s' )
 
-    with open('/tmp/' + req_id, 'wb') as infile:
-        context.bot.get_file(update.message.document).download( out = infile)
+    logger.info('received a file, addigning request id=' + req_id )
+
+    reqfile = '/tmp/' + req_id
+    with open(reqfile, 'wb') as _:
+        context.bot.get_file(update.message.document).download( out = _ )
 
     context.bot.send_message(
         chat_id = update.message.chat_id
         , text    = "your search id is " + req_id)
     try:
-        s = progen_search(req_id)
+        query = ProgenitorQuery(reqfile)
+        results = ProgenitorSearch(query, db)
         outpath = '/tmp/' + req_id + '.result'
         try:
-            outfile = open(outpath, 'wb')
-            outfile.write(bytes(str(s),'UTF-8'))
+            logger.debug('saving search results to a file for sending')
+            outfile = open(outpath, 'w')
+            outfile.write( str(results) )
             outfile.close()
             outfile = open(outpath, 'rb')
             context.bot.send_document(
@@ -44,10 +46,12 @@ def downloader(update, context):
                 , document = outfile
                 , disable_content_type_detection = True)
         except Exception as e:
-            print (str(e))
+            logger.error ('failed to create output file')
+            logger.error (str(e))
 
     except Exception as e:
-        print (e)
+        logger.error ('could not parse query or execute search')
+        logger.error (str(e))
         try:
             errpath = '/tmp/' + req_id + '.err'
             errfile = open(errpath, 'wb')
@@ -59,7 +63,8 @@ def downloader(update, context):
                 , document=errfile
                 , disable_content_type_detection=True)
         except Exception as e:
-            print(str(e))
+            logger.critical ('Failed to write error to file')
+            logger.critical(str(e))
 
 updater = Updater(BOT_TOKEN, use_context=True)
 

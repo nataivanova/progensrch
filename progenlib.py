@@ -4,7 +4,6 @@ import re
 import numpy as np
 import os
 import pickle
-import json
 import logging
 
 class ProgenSearchException(Exception):
