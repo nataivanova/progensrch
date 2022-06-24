@@ -337,8 +337,7 @@ class ProgenitorDatabase:
 
 class ProgenitorSearch:
 
-    progens = {}
-    match_idx = {}
+    progens   = {}
 
     def __init__( self
                  , query: ProgenitorQuery
@@ -352,7 +351,7 @@ class ProgenitorSearch:
 
         self.view =  db.view(query)
         self.do_search()
-
+        self.logger.info( 'finished search for query ' + str(self.query) )
 
     def do_search(self):
         """Find files matching query parameters"""
@@ -364,29 +363,33 @@ class ProgenitorSearch:
         for dbfile in self.view.keys():
             self.logger.debug('searching through ' + dbfile)
             vals = self.db.get_vals(dbfile)
-            self.match_idx[dbfile] = [ idx for idx in range(len(vals['m1']))
-                                       if self.match_props( { 'm1': vals['m1'][idx]
-                                                              , 'm2': vals['m2'][idx]
-                                                              , 'mt': vals['mt'][idx]
-                                                              , 'teff': vals['teffs'][idx]
-                                                              , 'p': vals['periods'][idx] } )  ]
+            dbdata = self.db.db[dbfile]
 
-            if len(self.match_idx[dbfile]):
-                self.logger.debug (self.match_idx)
-                self.progens[dbfile] = { 'm1_0'            : self.db.db[dbfile]['m1']
-                                         , 'p_0'           : self.db.db[dbfile]['p']
-                                         , 'm2_0'          : self.db.db[dbfile]['m2_min']
-                                         , 'total_time'    : self.db.db[dbfile]['total_time']
+            match_idx = [ idx for idx in range(len(vals['m1']))
+                          if self.match_props( { 'm1': vals['m1'][idx]
+                                                 , 'm2': vals['m2'][idx]
+                                                 , 'mt': vals['mt'][idx]
+                                                 , 'teff': vals['teffs'][idx]
+                                                 , 'p': vals['periods'][idx] } )  ]
+
+            if match_idx:
+                self.logger.debug ( dbfile + 'matches at indices ' + str(match_idx) )
+                self.progens[dbfile] = { 'm1_0'            : dbdata['m1']
+                                         , 'p_0'           : dbdata['p']
+                                         , 'm2_0'          : dbdata['m2_min']
+                                         , 'total_time'    : dbdata['total_time']
                                          , 'observed_time' : sum( [ 10**x
                                                                    for x
                                                                    in [ vals['dts'][idx]
-                                                                        for idx in self.match_idx[dbfile] ] ] )
-                                         , 'm1_at_mt_onset'      : vals['m1'][self.db.db[dbfile]['mt_onset']]
-                                         , 'log10_p_at_mt_onset' : np.log10( vals['periods'][self.db.db[dbfile]['mt_onset']] )
-                                         , 'm2_at_query_mt_start': vals['m2'][self.match_idx[dbfile][0]]
-                                         , 'm2_at_query_mt_end'  : vals['m2'][self.match_idx[dbfile][-1]]
-                                         , 'age_at_query_mt_start': vals['ages'][self.match_idx[dbfile][0]]
-                                         , 'age_at_query_mt_end'  : vals['ages'][self.match_idx[dbfile][-1]] }
+                                                                        for idx in match_idx ] ] )
+                                         , 'm1_at_mt_onset'      : vals['m1'][dbdata['mt_onset']]
+                                         , 'log10_p_at_mt_onset' : np.log10( vals['periods'][dbdata['mt_onset']] )
+                                         , 'm2_at_query_mt_start': vals['m2'][match_idx[0]]
+                                         , 'm2_at_query_mt_end'  : vals['m2'][match_idx[-1]]
+                                         , 'age_at_query_mt_start': vals['ages'][match_idx[0]]
+                                         , 'age_at_query_mt_end'  : vals['ages'][match_idx[-1]] }
+            else:
+                self.logger.debug( 'no matches in ' + dbfile )
 
     def match_props(self, data: dict) -> bool:
             query = self.query
@@ -400,14 +403,22 @@ class ProgenitorSearch:
                 return True
 
     def __str__(self):
-        s = ''
+        self.logger.debug( 'printing the search results with default header and formatting' )
+        s = (  "M_don,i  lg[P_orb,i]     M_acc,i    tau_obs      tau_mt_tot       M_don          lg[P_orb,mt]     M_acc,obs       M_acc,obs      age_obs start    age_obs ebd    \n"
+               + "[Msun]   [P in days]     [Msun]     [years]      [years]          [Msun]         [P in days]      start [Msun]    end [Msun]     [years]          [years] \n" )
         for progen in self.progens.values():
-            for param in [ 'm1_0', 'p_0', 'm2_0', 'observed_time', 'total_time'
-                           , 'm1_at_mt_onset', 'log10_p_at_mt_onset'
-                           , 'm2_at_query_mt_start', 'm2_at_query_mt_end'
-                           , 'age_at_query_mt_start', 'age_at_query_mt_end']:
-                s += f'{progen[param]:.4f}' + ' '
-            s += "\n"
+            s += ( f'{progen["m1_0"]:7.2f}' + '\t'
+                   + f'{progen["p_0"]:8.3f}'  + '\t'
+                   + f'{progen["m2_0"]:5.2f}'  + '\t'
+                   + f'{progen["observed_time"]:15.3f}' + '\t'
+                   + f'{progen["total_time"]:15.3f}' + '\t'
+                   + f'{progen["m1_at_mt_onset"]:8.4f}'  + '\t'
+                   + f'{progen["log10_p_at_mt_onset"]:8.4f}'  + '\t'
+                   + f'{progen["m2_at_query_mt_start"]:8.4f}'  + '\t'
+                   + f'{progen["m2_at_query_mt_end"]:8.4f}'  + '\t'
+                   + f'{progen["age_at_query_mt_start"]:15.3f}' + '\t'
+                   + f'{progen["age_at_query_mt_end"]:15.3f}' + "\n" )
+        s +="\n"
 
         return (s)
 
