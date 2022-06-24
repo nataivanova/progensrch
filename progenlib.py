@@ -42,7 +42,7 @@ class ProgenitorQuery:
     def __init__(self, qpath) -> None:
 
         logger = logging.getLogger('progentool')
-        logger.info ('parsing the input file' + qpath)
+        logger.info ('parsing the input file ' + qpath)
 
         try:
             with open(qpath) as infile:

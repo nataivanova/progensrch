@@ -4,7 +4,7 @@ import os
 import uuid
 import logging
 from progenlib import *
-from telegram.ext import Updater, MessageHandler, Filters
+from telegram.ext import Updater, MessageHandler, CommandHandler, Filters
 
 logger = logging.getLogger('progen tool - telegram')
 req_id = 'startup'
@@ -66,9 +66,24 @@ def downloader(update, context):
             logger.critical ('Failed to write error to file')
             logger.critical(str(e))
 
+def help(update, context):
+    logger.info("help requested")
+    x = "help will be given to those who ask for it"
+    context.bot.send_message( chat_id = update.message.chat_id
+                              , text = x)
+    try:
+        with open ('./sample_query.txt', 'rb') as sample_file:
+            context.bot.send_document ( chat_id = update.message.chat_id
+                                        , document = sample_file
+                                        , disable_content_type_detection = True)
+    except Exception as e:
+        logger.error ('cannot send sample query file')
+        logger.error (str(e))
+
 updater = Updater(BOT_TOKEN, use_context=True)
 
 updater.dispatcher.add_handler(MessageHandler(Filters.document, downloader))
+updater.dispatcher.add_handler(CommandHandler("help", help))
 
 updater.start_polling()
 updater.idle()
