@@ -385,7 +385,7 @@ class ProgenitorSearch:
                                          , 'log10_p_at_mt_onset' : np.log10( vals['periods'][dbdata['mt_onset']] )
                                          , 'm2_at_query_mt_start': vals['m2'][match_idx[0]]
                                          , 'm2_at_query_mt_end'  : vals['m2'][match_idx[-1]]
-                                         , 'age_at_query_mt_start': vals['ages'][match_idx[0]]
+                                         , 'age_at_query_mt_start': vals['ages'][max(0, match_idx[0]-1)]
                                          , 'age_at_query_mt_end'  : vals['ages'][match_idx[-1]] }
             else:
                 self.logger.debug( 'no matches in ' + dbfile )
