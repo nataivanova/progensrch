@@ -403,7 +403,7 @@ class ProgenitorSearch:
 
     def __str__(self):
         self.logger.debug( 'printing the search results with default header and formatting' )
-        s = (  "M_don,i  lg[P_orb,i]     M_acc,i    tau_obs      tau_mt_tot       M_don          lg[P_orb,mt]     M_acc,obs       M_acc,obs      age_obs start    age_obs ebd    \n"
+        s = (  "M_don,i  lg[P_orb,i]     M_acc,i    tau_obs      tau_mt_tot       M_don,mt       lg[P_orb,mt]     M_acc,obs       M_acc,obs      age_obs start    age_obs end    \n"
                + "[Msun]   [P in days]     [Msun]     [years]      [years]          [Msun]         [P in days]      start [Msun]    end [Msun]     [years]          [years] \n" )
         for progen in self.progens.values():
             s += ( f'{progen["m1_0"]:7.2f}' + '\t'
