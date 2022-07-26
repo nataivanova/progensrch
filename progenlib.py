@@ -421,7 +421,7 @@ class ProgenitorSearch:
                    + f'{progen["m2_at_query_mt_end"]:<14.4f}'  
                    + f'{progen["age_at_query_mt_start"]:<16.3f}' 
                    + f'{progen["age_at_query_mt_end"]:<15.3f}' )
-        s +="\n"
+            s +="\n"
 
         return (s)
 
