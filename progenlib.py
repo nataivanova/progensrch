@@ -403,20 +403,24 @@ class ProgenitorSearch:
 
     def __str__(self):
         self.logger.debug( 'printing the search results with default header and formatting' )
-        s = (  "M_don,i  lg[P_orb,i]     M_acc,i    tau_obs      tau_mt_tot       M_don,mt       lg[P_orb,mt]     M_acc,obs start M_acc,obs end  age_obs start   age_obs end    \n"
-               + "[Msun]   [P in days]     [Msun]     [years]      [years]          [Msun]         [P in days]      [Msun]          [Msun]         [years]         [years] \n" )
+        
+        # Column headers        
+        s = '{:8}'.format('M_don,i')+'{:12}'.format('lg[P_orb,i]')+'{:8}'.format('M_acc,i')+'{:16}'.format('tau_obs')+'{:16}'.format('tau_tot')+'{:9}'.format('M_don,mt')+'{:13}'.format('lg[P_orb,mt]')+'{:16}'.format('M_acc,obs start')+'{:14}'.format('M_acc,obs end')+'{:16}'.format('age_obs start')+'{:15}'.format('age_obs end')+'\n'
+        # Column units        
+        s += '{:8}'.format('[Msun]')+'{:12}'.format('[P in days]')+'{:8}'.format('[Msun]')+'{:16}'.format('[years]')+'{:16}'.format('[years]')+'{:9}'.format('[Msun]')+'{:13}'.format('[P in days]')+'{:16}'.format('[Msun]')+'{:14}'.format('[Msun]')+'{:16}'.format('[years]')+'{:15}'.format('[years]')+'\n'
+        
         for progen in self.progens.values():
-            s += ( f'{progen["m1_0"]:7.2f}' + '\t'
-                   + f'{progen["p_0"]:8.3f}'  + '\t'
-                   + f'{progen["m2_0"]:5.2f}'  + '\t'
-                   + f'{progen["observed_time"]:15.3f}' + '\t'
-                   + f'{progen["total_time"]:15.3f}' + '\t'
-                   + f'{progen["m1_at_mt_onset"]:8.4f}'  + '\t'
-                   + f'{progen["log10_p_at_mt_onset"]:8.4f}'  + '\t'
-                   + f'{progen["m2_at_query_mt_start"]:8.4f}'  + '\t'
-                   + f'{progen["m2_at_query_mt_end"]:8.4f}'  + '\t'
-                   + f'{progen["age_at_query_mt_start"]:15.3f}' + '\t'
-                   + f'{progen["age_at_query_mt_end"]:15.3f}' + "\n" )
+            s += ( f'{progen["m1_0"]:<8.2f}' 
+                   + f'{progen["p_0"]:<12.3f}'  
+                   + f'{progen["m2_0"]:<8.2f}' 
+                   + f'{progen["observed_time"]:<16.3f}' 
+                   + f'{progen["total_time"]:<16.3f}'
+                   + f'{progen["m1_at_mt_onset"]:<9.4f}' 
+                   + f'{progen["log10_p_at_mt_onset"]:<13.4f}' 
+                   + f'{progen["m2_at_query_mt_start"]:<16.4f}' 
+                   + f'{progen["m2_at_query_mt_end"]:<14.4f}'  
+                   + f'{progen["age_at_query_mt_start"]:<16.3f}' 
+                   + f'{progen["age_at_query_mt_end"]:<15.3f}' )
         s +="\n"
 
         return (s)
